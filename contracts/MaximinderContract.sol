@@ -16,7 +16,7 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 
 import "hardhat/console.sol";
 
-contract BlockpartyContract is ERC165, ERC721URIStorage, EIP712, AccessControl, Ownable {
+contract MaximinderContract is ERC165, ERC721URIStorage, EIP712, AccessControl, Ownable {
     bytes4 private constant INTERFACE_ID_ERC2981 = 0x2a55205a;
 
     // this information is used to prevent an attacker
