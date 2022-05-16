@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    "target": "es2018",
+    "module": "commonjs",
+    "strict": true,
+    "esModuleInterop": true,
+    "outDir": "build",
+    "declaration": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/services/*": [
+        "src/services/*"
+      ],
+      "@/smart-contract/*": [
+        "artifacts/contracts/MaximinderContract.sol/*"
+      ]
+    }
+  },
+  "files": [
+    "./hardhat.config.ts"
+  ],
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    "./typechain",
+    "./src",
+    "deploy",
+    "./test"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}
