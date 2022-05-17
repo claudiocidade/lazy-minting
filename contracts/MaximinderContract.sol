@@ -166,10 +166,6 @@ contract MaximinderContract is ERC165, ERC721URIStorage, EIP712, AccessControl, 
     /// @param voucher An Voucher describing an unminted NFT.
     function _verify(Voucher calldata voucher) internal view returns (bool) {
         bytes32 digest = _hash(voucher);
-        console.log("DOMAIN ", SIGNING_DOMAIN);
-        console.log("OWNER ", owner());
-        console.log("CREATOR ", voucher.from);
-        console.log("COLLECTOR ", voucher.to);
         return SignatureChecker.isValidSignatureNow(owner(), digest, voucher.signature);
     }
 
