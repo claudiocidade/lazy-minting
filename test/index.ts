@@ -1,59 +1,62 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { signVoucher } from '../src/services/signing-service';
+import SigningService from '../src/services/signing-service';
 
 import "@nomiclabs/hardhat-waffle";
+
+// a domain information to secure vouchers
+const SIGNING_DOMAIN = process.env.SIGNING_DOMAIN || "LMDEV"
 
 async function deploy() {
   const [signer, creator, buyer] = await ethers.getSigners()
 
-  let factory = await ethers.getContractFactory("MaximinderContract")
-  const contract = await factory.deploy()
-  // a domain information to secure vouchers
-  const domain = "LMDEV"
+  const contract = 
+    await (await ethers
+      .getContractFactory("MaximinderContract"))
+      .deploy()
 
   return {
     signer,
     creator,
     buyer,
-    contract,
-    domain
+    contract
   }
 }
 
 describe("MaximinderContract", function() {
   it("Should deploy", async function() {
+    const [signer] = await ethers.getSigners()
     const contract = 
       await (await ethers
         .getContractFactory("MaximinderContract"))
         .deploy();
-    await contract.deploy();
     await contract.deployed();
   });
 
   it("Should redeem an NFT from a signed voucher", async function() {
-    const { creator, buyer, contract, domain } = await deploy()
+    const { creator, buyer, contract, signer } = await deploy()
   
-    const voucher = await signVoucher(
-      'rinkeby', 
-      contract.address,
-      '',
+    const service: SigningService = new SigningService(contract, signer)
+
+    const payment = ethers.utils.parseEther("0.012");
+
+    const voucher = await service.signVoucher(
       {
-        domain: domain,
+        domain: SIGNING_DOMAIN,
         version: "1",
         key: "A12345",
-        price: "0.012",
-        from: creator.address, 
+        price: payment,
+        from: creator.address,
         to: buyer.address,
         uri: "ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"  
       }
     )
-
-    await expect(contract.redeem(5, voucher))
+      
+    await expect(contract.redeem(5, voucher, { value: payment }))
       .to.emit(contract, 'Transfer')  // transfer from null address to minter
-      .withArgs('0x0000000000000000000000000000000000000000', voucher.from, 1)
+      .withArgs('0x0000000000000000000000000000000000000000', creator.address, ethers.utils.parseEther("0"))
       .and.to.emit(contract, 'Transfer') // transfer from minter to redeemer
-      .withArgs(voucher.from, voucher.to, 1);
+      .withArgs(creator.address, buyer.address, ethers.utils.parseEther("0"));
   });
 
   // it("Should fail to redeem an NFT that's already been claimed", async function() {

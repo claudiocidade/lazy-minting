@@ -7,6 +7,8 @@ import "@typechain/hardhat";
 import "hardhat-gas-reporter";
 import "solidity-coverage";
 
+const SIGNING_DOMAIN = process.env.SIGNING_DOMAIN || "LMDEV"
+
 dotenv.config();
 
 // This is a sample Hardhat task. To learn how to create your own go to

@@ -21,7 +21,7 @@ contract MaximinderContract is ERC165, ERC721URIStorage, EIP712, AccessControl, 
 
     // this information is used to prevent an attacker
     // from using a testnet voucher on mainnet
-    string private SIGNING_DOMAIN; 
+    string private constant SIGNING_DOMAIN = "LMDEV";
     string private constant SIGNATURE_VERSION = "1";
     
     using ECDSA for bytes32;
@@ -33,10 +33,9 @@ contract MaximinderContract is ERC165, ERC721URIStorage, EIP712, AccessControl, 
 
     Counters.Counter private tokenIdentityGenerator;
 
-    constructor(string memory domain)
+    constructor()
         ERC721("Maximinder Marketplace", "MXMP") 
         EIP712(SIGNING_DOMAIN, SIGNATURE_VERSION) {
-        SIGNING_DOMAIN = domain;
     }
 
     /// @notice Represents an un-minted NFT, 
@@ -167,6 +166,10 @@ contract MaximinderContract is ERC165, ERC721URIStorage, EIP712, AccessControl, 
     /// @param voucher An Voucher describing an unminted NFT.
     function _verify(Voucher calldata voucher) internal view returns (bool) {
         bytes32 digest = _hash(voucher);
+        console.log("DOMAIN ", SIGNING_DOMAIN);
+        console.log("OWNER ", owner());
+        console.log("CREATOR ", voucher.from);
+        console.log("COLLECTOR ", voucher.to);
         return SignatureChecker.isValidSignatureNow(owner(), digest, voucher.signature);
     }
 

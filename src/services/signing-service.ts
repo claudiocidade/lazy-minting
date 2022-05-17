@@ -1,49 +1,54 @@
 import ethers from 'ethers'
+import type { TypedDataSigner } from "@ethersproject/abstract-signer";
 
 type VoucherSignatureRequest = {
   domain: string
   version: string
   key: string 
-  price: string
+  price: string | ethers.BigNumber
   from: string 
   to: string
   uri: string  
 }
 
-export const signVoucher = async (
-    targetNetwork: string = 'mainnet',
-    contractAddress: string,
-    signerPrivateKey: string,
-    signatureRequest: VoucherSignatureRequest
-) => {
-    const provider = ethers.getDefaultProvider(targetNetwork);
-    console.log(`Provider for network '${targetNetwork}' created.`)
-    const signer = new ethers.Wallet(signerPrivateKey, provider)
+export default class SigningService {
+  constructor(private contract: ethers.Contract, private signer: (ethers.Signer & TypedDataSigner)) {
+    this.contract = contract
+    this.signer = signer
+  }
+  
+  async signVoucher(signatureRequest: VoucherSignatureRequest) {
+    console.log(`Request received to sign a voucher: ${JSON.stringify(signatureRequest)}.`)
     const domain = {
       name: signatureRequest.domain,
       version: signatureRequest.version,
-      verifyingContract: contractAddress,
-      chainId: await signer.getChainId(),
+      verifyingContract: this.contract.address,
+      chainId: await this.signer.getChainId(),
     }
     console.log(`Preparing signature context: \n'${JSON.stringify(domain)}'.\n\n`)
+    let price = 
+      typeof signatureRequest.price === 'string' 
+        ? ethers.utils.parseEther(signatureRequest.price)
+        : signatureRequest.price;
     const voucher = { 
-        assetId: signatureRequest.key, 
-        price: ethers.utils.parseEther(signatureRequest.price), 
+        key: signatureRequest.key, 
+        price: price, 
         from: signatureRequest.from, 
         to: signatureRequest.to, 
         uri: signatureRequest.uri }
     console.log(`Preparing voucher for signing: \n'${JSON.stringify(voucher)}'.\n\n`)
     const types = {
       Voucher: [
-        {name: "assetId", type: "string"},
+        {name: "key", type: "string"},
         {name: "price", type: "uint256"},
         {name: "from", type: "address"},
         {name: "to", type: "address"},
         {name: "uri", type: "string"},  
       ]
     }
-    const signature = await signer._signTypedData(domain, types, voucher)
+    const signature = await this.signer._signTypedData(domain, types, voucher)
     const result = { ...voucher, signature }
     console.log(`Signature created: \n'${JSON.stringify(result)}'.\n\n`)
     return result
+  }
 }
