@@ -14,11 +14,7 @@ import "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 
 import "@openzeppelin/contracts/utils/Counters.sol";
 
-import "hardhat/console.sol";
-
 contract MaximinderContract is ERC165, ERC721URIStorage, EIP712, AccessControl, Ownable {
-    bytes4 private constant INTERFACE_ID_ERC2981 = 0x2a55205a;
-
     // this information is used to prevent an attacker
     // from using a testnet voucher on mainnet
     string private constant SIGNING_DOMAIN = "LMDEV";
@@ -33,9 +29,12 @@ contract MaximinderContract is ERC165, ERC721URIStorage, EIP712, AccessControl, 
 
     Counters.Counter private tokenIdentityGenerator;
 
-    constructor()
+    address private voucherSigner;
+
+    constructor(address signer)
         ERC721("Maximinder Marketplace", "MXMP") 
         EIP712(SIGNING_DOMAIN, SIGNATURE_VERSION) {
+        voucherSigner = signer;
     }
 
     /// @notice Represents an un-minted NFT, 
