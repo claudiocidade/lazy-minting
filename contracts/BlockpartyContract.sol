@@ -16,7 +16,7 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 
 import "hardhat/console.sol";
 
-contract MaximinderContract is ERC165, ERC721URIStorage, EIP712, AccessControl, Ownable {
+contract BlockpartyContract is ERC165, ERC721URIStorage, EIP712, AccessControl, Ownable {
     using ECDSA for bytes32;
     using Counters for Counters.Counter;
 
@@ -38,7 +38,7 @@ contract MaximinderContract is ERC165, ERC721URIStorage, EIP712, AccessControl, 
         address signer, 
         string memory domain, 
         string memory version)
-        ERC721("Maximinder Marketplace", "MXMP") 
+        ERC721("Blockparty Platform", "BPPL") 
         EIP712(domain, version) {
         voucherSigner = signer;
     }
@@ -124,7 +124,7 @@ contract MaximinderContract is ERC165, ERC721URIStorage, EIP712, AccessControl, 
     function redeem(
         uint8 platformFee, 
         Voucher calldata voucher) public payable returns (uint256) {
-        // make sure signature is valid and get the address of the creator
+        // forcing counters to start from 1 onwards
         uint256 tokenId = tokenIdentityGenerator.current() + 1;
 
         // make sure expired vouchers can't be used beyond the dealine

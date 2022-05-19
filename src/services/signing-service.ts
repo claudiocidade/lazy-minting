@@ -10,7 +10,7 @@ type VoucherSignatureRequest = {
   to: string
   uri: string  
   giveaway: boolean
-  expiration: number
+  deadline: number
 }
 
 export default class SigningService {
@@ -39,7 +39,7 @@ export default class SigningService {
         to: signatureRequest.to, 
         uri: signatureRequest.uri,
         giveaway: signatureRequest.giveaway,
-        expiration: signatureRequest.expiration }
+        deadline: signatureRequest.deadline }
     console.log(`Preparing voucher for signing: \n'${JSON.stringify(voucher)}'.\n\n`)
     const types = {
       Voucher: [
@@ -49,7 +49,7 @@ export default class SigningService {
         {name: "to", type: "address"},
         {name: "uri", type: "string"},  
         {name: "giveaway", type: "bool"},
-        {name: "expiration", type: "uint256"},
+        {name: "deadline", type: "uint256"},
       ]
     }
     const signature = await this.signer._signTypedData(domain, types, voucher)

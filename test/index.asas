@@ -1,12 +1,12 @@
 import moment from 'moment';
-import { expect } from "chai";
+import { expect } from 'chai';
 import { ethers } from "hardhat";
 import SigningService from '../src/services/signing-service';
 
 import "@nomiclabs/hardhat-waffle";
 
 // a domain information to secure vouchers
-const SIGNING_DOMAIN = process.env.SIGNING_DOMAIN || "LMDEV"
+const SIGNING_DOMAIN = "BP-Voucher"
 const SIGNING_VERSION = process.env.SIGNING_VERSION || "1"
 
 async function deploy() {
@@ -14,7 +14,7 @@ async function deploy() {
 
   const contract = 
     await (await ethers
-      .getContractFactory("MaximinderContract"))
+      .getContractFactory("BlockpartyContract"))
       .deploy(signer.address, SIGNING_DOMAIN, SIGNING_VERSION)
 
   return {
@@ -26,7 +26,7 @@ async function deploy() {
   }
 }
 
-describe("MaximinderContract", function() {
+describe("BlockpartyContract", function() {
   it("Should deploy", async function() {
     await deploy();
   });
