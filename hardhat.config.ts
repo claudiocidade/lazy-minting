@@ -26,7 +26,7 @@ task("deploy", "Deploys the smart contract", async (taskArgs, hre) => {
   const contract = 
     await (await hre.ethers
       .getContractFactory("MaximinderContract"))
-      .deploy();
+      .deploy("0xc8D7B45ed5AdCB770F50a50879a965E257aEa2cb");
 
   await contract.deployed();
 

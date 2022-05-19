@@ -1,3 +1,4 @@
+import moment from 'moment';
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import SigningService from '../src/services/signing-service';
@@ -8,14 +9,15 @@ import "@nomiclabs/hardhat-waffle";
 const SIGNING_DOMAIN = process.env.SIGNING_DOMAIN || "LMDEV"
 
 async function deploy() {
-  const [signer, creator, buyer] = await ethers.getSigners()
+  const [owner, creator, buyer, signer] = await ethers.getSigners()
 
   const contract = 
     await (await ethers
       .getContractFactory("MaximinderContract"))
-      .deploy()
+      .deploy(signer.address)
 
   return {
+    owner,
     signer,
     creator,
     buyer,
@@ -25,20 +27,15 @@ async function deploy() {
 
 describe("MaximinderContract", function() {
   it("Should deploy", async function() {
-    const [signer] = await ethers.getSigners()
-    const contract = 
-      await (await ethers
-        .getContractFactory("MaximinderContract"))
-        .deploy();
-    await contract.deployed();
+    await deploy();
   });
 
   it("Should redeem an NFT from a signed voucher", async function() {
     const { creator, buyer, contract, signer } = await deploy()
   
-    const service: SigningService = new SigningService(contract, signer)
-
+    const service: SigningService = new SigningService(contract, signer);
     const payment = ethers.utils.parseEther("0.012");
+    const voucherExpiration = moment().add(5, 'minutes').unix();
 
     const voucher = await service.signVoucher(
       {
@@ -48,58 +45,125 @@ describe("MaximinderContract", function() {
         price: payment,
         from: creator.address,
         to: buyer.address,
-        uri: "ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"  
+        uri: "ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+        giveaway: false,
+        expiration: voucherExpiration
       }
     )
       
     await expect(contract.redeem(5, voucher, { value: payment }))
       .to.emit(contract, 'Transfer')  // transfer from null address to minter
-      .withArgs('0x0000000000000000000000000000000000000000', creator.address, ethers.utils.parseEther("0"))
+      .withArgs('0x0000000000000000000000000000000000000000', creator.address, 1)
       .and.to.emit(contract, 'Transfer') // transfer from minter to redeemer
-      .withArgs(creator.address, buyer.address, ethers.utils.parseEther("0"));
+      .withArgs(creator.address, buyer.address, 1);
   });
 
-  // it("Should fail to redeem an NFT that's already been claimed", async function() {
-  //   const { contract, buyerContract, buyer, creator } = await deploy()
+  it("Should redeem an NFT from a signed giveaway voucher", async function() {
+    const { creator, buyer, contract, signer } = await deploy()
+  
+    const service: SigningService = new SigningService(contract, signer);
+    const payment = ethers.utils.parseEther("0.012");
+    const voucherExpiration = moment().add(5, 'minutes').unix();
 
-  //   const mintService = new MintService( contract, creator )
-  //   const voucher = await mintService.createVoucher(1, "ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi")
+    const voucher = await service.signVoucher(
+      {
+        domain: SIGNING_DOMAIN,
+        version: "1",
+        key: "A12345",
+        price: payment,
+        from: creator.address,
+        to: buyer.address,
+        uri: "ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+        giveaway: true,
+        expiration: voucherExpiration
+      }
+    )
+      
+    await expect(contract.redeem(0, voucher))
+      .to.emit(contract, 'Transfer')  // transfer from null address to minter
+      .withArgs('0x0000000000000000000000000000000000000000', creator.address, 1)
+      .and.to.emit(contract, 'Transfer') // transfer from minter to redeemer
+      .withArgs(creator.address, buyer.address, 1);
+  });
 
-  //   await expect(buyerContract.redeem(buyer.address, voucher))
-  //     .to.emit(contract, 'Transfer')  // transfer from null address to creator
-  //     .withArgs('0x0000000000000000000000000000000000000000', creator.address, voucher.tokenId)
-  //     .and.to.emit(contract, 'Transfer') // transfer from creator to buyer
-  //     .withArgs(creator.address, buyer.address, voucher.tokenId);
+  it("Should fail to redeem an NFT that's already been claimed", async function() {
+    const { creator, buyer, contract, signer } = await deploy()
+  
+    const service: SigningService = new SigningService(contract, signer);
+    const payment = ethers.utils.parseEther("0.012");
+    const voucherExpiration = moment().add(5, 'minutes').unix();
 
-  //   await expect(buyerContract.redeem(buyer.address, voucher))
-  //     .to.be.revertedWith('ERC721: token already minted')
-  // });
+    const voucher = await service.signVoucher(
+      {
+        domain: SIGNING_DOMAIN,
+        version: "1",
+        key: "A12345",
+        price: payment,
+        from: creator.address,
+        to: buyer.address,
+        uri: "ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+        giveaway: false,
+        expiration: voucherExpiration
+      }
+    )
+      
+    const result = await contract.redeem(5, voucher, { value: payment });
 
-  // it("Should fail to redeem an NFT voucher that's signed by an unauthorized account", async function() {
-  //   const { contract, buyerContract, buyer, creator } = await deploy()
+    await expect(contract.redeem(5, voucher, { value: payment }))
+      .to.be.revertedWith('Item is sold')
+  });
 
-  //   const signers = await ethers.getSigners()
-  //   const rando = signers[signers.length-1];
-    
-  //   const mintService = new MintService( contract, rando )
-  //   const voucher = await mintService.createVoucher(1, "ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi")
+  it("Should fail to redeem an NFT voucher that's signed by an invalid signer", async function() {
+    const { creator, buyer, contract, signer } = await deploy()
+  
+    const service: SigningService = new SigningService(contract, buyer);
+    const payment = ethers.utils.parseEther("0.012");
+    const voucherExpiration = moment().add(5, 'minutes').unix();
 
-  //   await expect(buyerContract.redeem(buyer.address, voucher))
-  //     .to.be.revertedWith('Signature invalid or unauthorized')
-  // });
+    const voucher = await service.signVoucher(
+      {
+        domain: SIGNING_DOMAIN,
+        version: "1",
+        key: "A12345",
+        price: payment,
+        from: creator.address,
+        to: buyer.address,
+        uri: "ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+        giveaway: false,
+        expiration: voucherExpiration
+      }
+    )
 
-  // it("Should fail to redeem an NFT voucher that's been modified", async function() {
-  //   const { contract, buyerContract, buyer, creator } = await deploy()
+    await expect(contract.redeem(5, voucher, { value: payment }))
+      .to.be.revertedWith('Invalid signature')
+  });
 
-  //   const signers = await ethers.getSigners()
-  //   const rando = signers[signers.length-1];
-    
-  //   const mintService = new MintService( contract, rando )
-  //   const voucher = await mintService.createVoucher(1, "ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi")
-  //   voucher.tokenId = 2
-  //   await expect(buyerContract.redeem(buyer.address, voucher))
-  //     .to.be.revertedWith('Signature invalid or unauthorized')
-  // });
+  it("Should fail to redeem an NFT voucher that's been modified", async function() {
+    const { creator, buyer, contract, signer } = await deploy()
+  
+    const service: SigningService = new SigningService(contract, buyer);
+    const payment = ethers.utils.parseEther("0.012");
+    const voucherExpiration = moment().add(5, 'minutes').unix();
+
+    const voucher = await service.signVoucher(
+      {
+        domain: SIGNING_DOMAIN,
+        version: "1",
+        key: "A12345",
+        price: payment,
+        from: creator.address,
+        to: buyer.address,
+        uri: "ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+        giveaway: false,
+        expiration: voucherExpiration
+      }
+    );
+
+    voucher.key = "A12344";
+
+    await expect(contract.redeem(5, voucher, { value: payment }))
+      .to.be.revertedWith('Invalid signature')
+  });
 
   // it("Should fail to redeem an NFT voucher with an invalid signature", async function() {
   //   const { contract, buyerContract, buyer, creator } = await deploy()

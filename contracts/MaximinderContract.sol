@@ -14,6 +14,8 @@ import "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 
 import "@openzeppelin/contracts/utils/Counters.sol";
 
+import "hardhat/console.sol";
+
 contract MaximinderContract is ERC165, ERC721URIStorage, EIP712, AccessControl, Ownable {
     // this information is used to prevent an attacker
     // from using a testnet voucher on mainnet
@@ -64,11 +66,29 @@ contract MaximinderContract is ERC165, ERC721URIStorage, EIP712, AccessControl, 
         /// this token.
         string uri;
 
+        /// @notice Flags the voucher as a giveaway so 
+        /// all fees and costs are waived extraordinarelly.
+        bool giveaway;
+
+        /// @notice The expiration determines the expiration
+        /// of the voucher so that it can't be reused
+        uint256 expiration;
+
         /// @notice the EIP-712 signature of all other 
         /// fields in the Voucher struct. For a 
         /// voucher to be valid, it must be signed 
         /// by an account with the MINTER_ROLE.
         bytes signature;
+    }
+
+    /// @notice CAUTION: Changing the voucher signer invalidates unredeemed
+    /// vouchers signed by the current signer.
+    function changeSigner(
+        address newSigner) 
+        external onlyOwner {
+        require(newSigner != address(0), "Signer cannot be empty.");
+        require(newSigner != owner(), "Owner cannot be signer.");
+        voucherSigner = newSigner;
     }
 
     /// @notice Called with the sale price to determine how much royalty is owed and to whom.
@@ -83,7 +103,7 @@ contract MaximinderContract is ERC165, ERC721URIStorage, EIP712, AccessControl, 
             address receiver, 
             uint256 royaltyAmount) {
         address creator = tokenCreators[tokenId];
-        require(creator != address(0), "No creator found for this token ID");
+        require(creator != address(0), "Creator not found");
         return (creator, (salePrice * 5) / 100);
     }
 
@@ -92,6 +112,7 @@ contract MaximinderContract is ERC165, ERC721URIStorage, EIP712, AccessControl, 
         string key,
         address from, 
         address to, 
+        bool giveaway,
         uint256 soldPrice,
         string tokenUri);
 
@@ -100,37 +121,43 @@ contract MaximinderContract is ERC165, ERC721URIStorage, EIP712, AccessControl, 
         uint8 platformFee, 
         Voucher calldata voucher) public payable returns (uint256) {
         // make sure signature is valid and get the address of the creator
-        uint256 tokenId = tokenIdentityGenerator.current();
+        uint256 tokenId = tokenIdentityGenerator.current() + 1;
 
-        // make sure the fees aren't lower than 5 percent
-        require(platformFee >= 5, "Platform fee can't be lower than 5 percent");
+        // make sure expired vouchers can't be used beyond the dealine
+        require(block.timestamp < voucher.expiration, "Voucher expired");
 
         // verifies the voucher signature        
-        require(_verify(voucher), "Signature is invalid");
-
-        // putting in a financial barrier to prevent free mints (airdrops, giveaways)
-        require(msg.value >= 0.011 ether, "Insufficient funds: minimum is 0.011");
-        
-        // make sure that the buyer is paying enough to cover the buyer's cost
-        require(msg.value >= voucher.price, "Insufficient funds to redeem");
+        require(_verify(voucher), "Invalid signature");
 
         // make sure an asset can't be sold twice
         require(soldAssets[voucher.key] == 0, "Item is sold");
 
+        // when the voucher is for a giveaway, no need to validate amounts or fees
+        if (!voucher.giveaway) {
+            // make sure the fees aren't lower than 5 percent
+            require(platformFee >= 5, "Fee can't be less than 5%");
+
+            // make sure that the buyer is paying enough to cover the buyer's cost
+            // putting in a financial barrier to prevent free mints (airdrops, giveaways)
+            require(msg.value >= 0.011 ether || msg.value >= voucher.price, "Insufficient funds");
+        }
+
         // first assign the token to the creator, to establish provenance on-chain
-        _mint(voucher.from, tokenId);
+        _safeMint(voucher.from, tokenId);
         _setTokenURI(tokenId, voucher.uri);
 
         // transfer the token to the buyer
         _transfer(voucher.from, voucher.to, tokenId);
         tokenIdentityGenerator.increment();
 
-        uint256 cut = (msg.value * platformFee) / 100;
-
-        // the contract owner (marketplace) gets paid the platform fee
-        payable(owner()).transfer(cut);
-        // the creator gets the remainder of the sale profit
-        payable(voucher.from).transfer(msg.value - cut);
+        // Fees and commissions are processed only when it isn't a giveaway
+        if (!voucher.giveaway) {
+            uint256 cut = (msg.value * platformFee) / 100;
+            // the contract owner (marketplace) gets paid the platform fee
+            payable(owner()).transfer(cut);
+            // the creator gets the remainder of the sale profit
+            payable(voucher.from).transfer(msg.value - cut);
+        }
 
         // includes the creator on the royalties creator catalog
         tokenCreators[tokenId] = voucher.from;
@@ -143,6 +170,7 @@ contract MaximinderContract is ERC165, ERC721URIStorage, EIP712, AccessControl, 
             voucher.key,
             voucher.from, 
             voucher.to, 
+            voucher.giveaway,
             voucher.price,
             voucher.uri);
 
@@ -165,19 +193,21 @@ contract MaximinderContract is ERC165, ERC721URIStorage, EIP712, AccessControl, 
     /// @param voucher An Voucher describing an unminted NFT.
     function _verify(Voucher calldata voucher) internal view returns (bool) {
         bytes32 digest = _hash(voucher);
-        return SignatureChecker.isValidSignatureNow(owner(), digest, voucher.signature);
+        return SignatureChecker.isValidSignatureNow(voucherSigner, digest, voucher.signature);
     }
 
     /// @notice Returns a hash of the given Voucher, prepared using EIP712 typed data hashing rules.
     /// @param voucher An Voucher to hash.
     function _hash(Voucher calldata voucher) internal view returns (bytes32) {
         return _hashTypedDataV4(keccak256(abi.encode(
-            keccak256("Voucher(string key,uint256 price,address from,address to,string uri)"),
+            keccak256("Voucher(string key,uint256 price,address from,address to,string uri,bool giveaway,uint256 expiration)"),
             keccak256(bytes(voucher.key)),
             voucher.price,
             voucher.from,
             voucher.to,
-            keccak256(bytes(voucher.uri))
+            keccak256(bytes(voucher.uri)),
+            voucher.giveaway,
+            voucher.expiration
         )));
     }
 }
