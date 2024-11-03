@@ -95,31 +95,41 @@ To redeem an NFT, call the redeem function with a valid signed voucher:
 
 Initializes the contract with a voucher signer, domain, and version to uniquely identify the voucher signature.
 
-```solidity constructor(address signer, string memory domain, string memory version); ```
+```solidity 
+constructor(address signer, string memory domain, string memory version);
+```
 
 ### changeSigner
 
 Updates the voucher signer. Only callable by the contract owner.
 
-```solidity function changeSigner(address newSigner) external onlyOwner; ```
+```solidity 
+function changeSigner(address newSigner) external onlyOwner;
+```
 
 ### royaltyInfo
 
 Returns the royalty payment details for a specific sale.
 
-```solidity function royaltyInfo(uint256 tokenId, uint256 salePrice) external view returns (address receiver, uint256 royaltyAmount); ```
+```solidity 
+function royaltyInfo(uint256 tokenId, uint256 salePrice) external view returns (address receiver, uint256 royaltyAmount);
+```
 
 ### redeem
 
 Redeems a signed voucher for an NFT, transferring ownership and processing payment if applicable.
 
-```solidity function redeem(uint8 platformFee, Voucher calldata voucher) public payable returns (uint256); ```
+```solidity 
+function redeem(uint8 platformFee, Voucher calldata voucher) public payable returns (uint256);
+```
 
 ### supportsInterface
 
 Checks if the contract implements a specific interface.
 
-```solidity function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool); ```
+```solidity 
+function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool);
+```
 
 ## Voucher Structure
 
@@ -138,46 +148,38 @@ signature - Signed data for verification.
 
 The voucher issuance service follows strict rules to ensure the security and validity of each voucher issued. These rules are crucial for consumer developers to understand:
 
-1. Voucher Expiration:
-
-Each voucher includes an expiration, determined by the current block number plus a number of blocks based on a specified duration in minutes.
+1. **Voucher Expiration:** Each voucher includes an expiration, determined by the current block number plus a number of blocks based on a specified duration in minutes.
 Important: This expiration prevents vouchers from being reused after a certain time, safeguarding against stale voucher redemption attempts. Developers should ensure the voucher is redeemed within the specified timeframe.
 
-2. Domain Context:
-
-1The voucher signing service establishes a unique EIP-712 domain for each contract and deployment.
+2. **Domain Context:** The voucher signing service establishes a unique EIP-712 domain for each contract and deployment.
 This domain context includes the contractAddress, domain, version, and the chainId from the signer.
 Important: This domain information must match the contract’s context on-chain to validate the voucher. Any mismatch (e.g., due to a contract redeployment) will invalidate previously issued vouchers.
 
-3. Voucher Fields and Types:
-
-Each voucher contains specific fields: key, price, from (creator), to (buyer), uri (metadata URI), giveaway (boolean flag), and deadline.
+3. **Voucher Fields and Types:** Each voucher contains specific fields: key, price, from (creator), to (buyer), uri (metadata URI), giveaway (boolean flag), and deadline.
 The price field is validated and converted to a BigNumber to ensure precise and secure pricing.
-Important: Developers should ensure accurate data in these fields to prevent validation errors and ensure smooth redemption.
+`Important:` Developers should ensure accurate data in these fields to prevent validation errors and ensure smooth redemption.
 
-4. Price Conversion:
-
-The price field is parsed as a BigNumber if it's passed as a string. This ensures compatibility with Ether values and avoids rounding issues.
+4. **Price Conversion:** The price field is parsed as a BigNumber if it's passed as a string. This ensures compatibility with Ether values and avoids rounding issues.
 Important: This conversion is essential for ensuring compatibility with the smart contract’s redeem function, which expects price to be in wei.
 
-5. Signature Generation:
-
-The signing service generates an EIP-712 signature for each voucher based on the domain context and voucher fields.
+5. **Signature Generation:** The signing service generates an EIP-712 signature for each voucher based on the domain context and voucher fields.
 This signature is attached to the voucher and is required to redeem the voucher within the MaximinderContract.
 Important: Only the designated signer with the MINTER_ROLE should be authorized to sign vouchers, ensuring that only authorized entities can issue redeemable vouchers.
 
 ## Events
 
+```solidity
 itemSold(uint256 tokenId, string key, address from, address to, bool giveaway, uint256 soldPrice, string tokenUri)
+```
 
 ## Security Considerations
 
-- [Voucher Signature]: (Make sure to securely store the private key for signing vouchers to prevent unauthorized minting.)
-- [Voucher Expiry]: (Vouchers are time-sensitive; ensure that expired vouchers cannot be reused.)
-- [Platform Fee Enforcement]: (Only allow non-giveaway vouchers if the platform fee is at least 5%.)
-- [Royalty Handling]: (This contract automatically assigns a 5% royalty to the creator on secondary sales.)
+- **Voucher Signature**: Make sure to securely store the private key for signing vouchers to prevent unauthorized minting.
+- **Voucher Expiry**: Vouchers are time-sensitive; ensure that expired vouchers cannot be reused.
+- **Platform Fee Enforcement**: Only allow non-giveaway vouchers if the platform fee is at least 5%.
+- **Royalty Handling**: This contract automatically assigns a 5% royalty to the creator on secondary sales.
 
 ## License
-This project is licensed under the MIT License - see the LICENSE file for details. ```
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 Copy this directly into your README.md file, and it should retain the correct formatting. Let me know if this resolves the issue!
