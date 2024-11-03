@@ -1,4 +1,4 @@
-# MaximinderContract
+# NFT Marketplace Contract (opensea style / lazy minting)
 
 The `MaximinderContract` is an Ethereum smart contract that facilitates a decentralized marketplace for non-fungible tokens (NFTs) with lazy minting capabilities. This contract leverages the ERC721 standard, EIP712 signature structure, and OpenZeppelin's `AccessControl` and `Ownable` modules to securely manage token creation, transactions, and royalty distributions.
 
